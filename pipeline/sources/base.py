@@ -201,6 +201,8 @@ class RobotsDisallowedError(SourceError):
 _HOST_LOCK = threading.Lock()
 _LAST_REQUEST_AT: dict[str, float] = {}
 _HOST_DELAY: dict[str, float] = {}
+#: Current default gap between same-host requests; see set_polite_delay().
+_DEFAULT_HOST_DELAY: float = POLITE_DELAY_SECONDS
 _ROBOTS_CACHE: dict[str, urllib.robotparser.RobotFileParser | None] = {}
 _SESSION_LOCK = threading.Lock()
 _SESSION: requests.Session | None = None
@@ -225,6 +227,17 @@ def get_session() -> requests.Session:
         return _SESSION
 
 
+def set_polite_delay(seconds: float) -> None:
+    """Set the default minimum gap between requests to the same host.
+
+    Lets ``host_delay_seconds`` in config drive the crawl rate. A
+    robots.txt ``Crawl-delay`` still wins when it asks for more.
+    """
+    global _DEFAULT_HOST_DELAY
+    _DEFAULT_HOST_DELAY = max(0.0, float(seconds))
+    LOG.debug("Default per-host delay set to %.2fs", _DEFAULT_HOST_DELAY)
+
+
 def _host_of(url: str) -> str:
     """Return the lowercased ``host:port`` of *url*, or ``""`` if unparseable."""
     return (urlparse(url).netloc or "").lower()
@@ -235,7 +248,7 @@ def _polite_wait(host: str) -> None:
     if not host:
         return
     with _HOST_LOCK:
-        delay = _HOST_DELAY.get(host, POLITE_DELAY_SECONDS)
+        delay = _HOST_DELAY.get(host, _DEFAULT_HOST_DELAY)
         last = _LAST_REQUEST_AT.get(host)
         now = time.monotonic()
         wait_for = 0.0 if last is None else (last + delay) - now
@@ -287,7 +300,7 @@ def _load_robots(url: str) -> urllib.robotparser.RobotFileParser | None:
         if crawl_delay:
             with _HOST_LOCK:
                 _HOST_DELAY[parsed.netloc.lower()] = max(
-                    POLITE_DELAY_SECONDS, float(crawl_delay)
+                    _DEFAULT_HOST_DELAY, float(crawl_delay)
                 )
             LOG.info("Honoring robots.txt Crawl-delay of %ss for %s", crawl_delay, parsed.netloc)
     return parser

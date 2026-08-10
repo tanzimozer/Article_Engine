@@ -25,6 +25,12 @@ from pipeline.errors import InfraFailure
 
 log = logging.getLogger(__name__)
 
+# Headroom reserved for the assembled details box, which counts toward the
+# article's word ceiling but is not written by the writer. Six fields plus the
+# transit line land between 25 and 45 words; the upper bound is used so a long
+# venue name cannot push a passing draft over the limit.
+DETAILS_BOX_WORD_ALLOWANCE = 45
+
 
 def _slugify(stem: str, start_dt: str | None) -> str:
     """Lowercase kebab-case, with the event date appended.
@@ -118,11 +124,18 @@ def run(conn: sqlite3.Connection, cfg: dict[str, Any],
 
     body = " ".join(s.get("body", "") for s in sections)
     words = len(body.split())
-    if not (article_cfg["word_count_min"] <= words <= article_cfg["word_count_max"]):
+
+    # The inherited gate counts the whole body, and the details box is part of
+    # that body even though the writer never sees it. Six assembled fields run
+    # 25-45 words, so the writer's ceiling has to sit below the article's or a
+    # draft that passes here fails hardgate downstream.
+    prose_max = article_cfg["word_count_max"] - DETAILS_BOX_WORD_ALLOWANCE
+    if not (article_cfg["word_count_min"] <= words <= prose_max):
         return {
             "ok": False,
-            "reason": f"{words} words, expected "
-                      f"{article_cfg['word_count_min']}-{article_cfg['word_count_max']}",
+            "reason": f"{words} words of prose, expected "
+                      f"{article_cfg['word_count_min']}-{prose_max} "
+                      f"(leaves room for the {DETAILS_BOX_WORD_ALLOWANCE}-word details box)",
             "retry_from": "s4_write",
         }
 

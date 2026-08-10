@@ -306,8 +306,10 @@ def _search_params(eb_cfg: Mapping[str, Any], window_days: int) -> dict[str, Any
     """Build the query parameters for the Eventbrite event search endpoint."""
     range_start, range_end = _window_bounds(window_days)
     params: dict[str, Any] = {
-        "location.address": eb_cfg.get("location", DEFAULT_LOCATION),
-        "location.within": eb_cfg.get("within", DEFAULT_RADIUS),
+        "location.address": eb_cfg.get("location") or DEFAULT_LOCATION,
+        # "radius" is what config/sources.yaml calls it.
+        "location.within": first_present(eb_cfg.get("within"), eb_cfg.get("radius"))
+        or DEFAULT_RADIUS,
         "start_date.range_start": range_start,
         "start_date.range_end": range_end,
         "expand": _EXPANSIONS,
@@ -345,7 +347,9 @@ def fetch(cfg: dict, window_days: int = 10) -> list[dict]:
         return []
     token = token.strip()
 
-    eb_cfg = cfg.get("eventbrite", {}) if isinstance(cfg, Mapping) else {}
+    # gather.py passes this adapter its own sub-config; fall back to the
+    # whole mapping so a nested {"eventbrite": {...}} also works.
+    eb_cfg = cfg.get("eventbrite", cfg) if isinstance(cfg, Mapping) else {}
     if not isinstance(eb_cfg, Mapping):
         eb_cfg = {}
     max_pages = int(eb_cfg.get("max_pages", DEFAULT_MAX_PAGES))

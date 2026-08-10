@@ -11,18 +11,27 @@ the stock photo is illustrative rather than a picture of the real venue.
 
 Event shape
 -----------
-:func:`enrich_event` accepts either a nested or a flat event dict and writes
-back in whichever shape it was given::
+The canonical flat record, matching the ``events`` columns in
+:mod:`pipeline.state` so ``state.upsert_event`` persists every field::
 
-    # nested
+    {"venue_name": ..., "venue_address": ..., "lat": ..., "lon": ...,
+     "neighborhood": ..., "image_url": ..., "image_alt": ...,
+     "transit_json": [{"stop_name": ..., "routes": [...],
+                       "distance_m": ..., "mode": ...}, ...]}
+
+``transit_json`` holds a plain list, not a string: ``state.upsert_event``
+serialises the ``*_json`` columns itself, and ``stages/publish.py``,
+``stages/write.py`` and ``stages/factcheck.py`` all read it back from there.
+
+A nested shape is also accepted and written back in kind, for callers that hold
+events in memory rather than in the database::
+
     {"venue": {"name": ..., "address": ..., "url": ..., "lat": ..., "lon": ...},
-     "neighborhood": ..., "image": {"url": ..., "alt": ..., "source": ...},
-     "transit": [...]}
+     "image": {"url": ..., "alt": ..., "source": ...}}
 
-    # flat
-    {"venue_name": ..., "venue_address": ..., "venue_url": ..., "lat": ..., "lon": ...,
-     "neighborhood": ..., "image_url": ..., "image_alt": ..., "image_source": ...,
-     "transit": [...]}
+``venue_url`` is honoured when present but is not a column on ``events``; with
+no venue website the photo step goes straight to the labelled stock fallback
+rather than scraping an aggregator listing and calling it the venue's own photo.
 
 Public API:
     geocode(venue_name, address) -> tuple[float, float] | None
@@ -43,7 +52,7 @@ import threading
 import time
 from html.parser import HTMLParser
 from pathlib import Path
-from typing import Any, Iterable, Sequence
+from typing import Any, Sequence
 from urllib.parse import urljoin, urlsplit
 
 import requests
@@ -710,7 +719,12 @@ _IMAGE_SPECS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
 }
 
 _NEIGHBORHOOD_KEYS = ("neighborhood", "neighbourhood")
-_TRANSIT_KEYS = ("transit", "transit_stops")
+
+# ``transit_json`` first, deliberately. ``state._EVENT_FIELDS`` only persists
+# known columns and the events table has ``transit_json``, not ``transit`` --
+# writing to ``transit`` would let upsert_event drop the stops on the floor.
+# state.upsert_event serialises the list itself, so it is stored unserialised.
+_TRANSIT_KEYS = ("transit_json", "transit", "transit_stops")
 
 
 def _container(event: dict, group: str) -> tuple[dict, bool]:

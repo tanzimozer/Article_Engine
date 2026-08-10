@@ -328,10 +328,10 @@ Return one JSON object and nothing else. No preamble, no commentary, no code fen
 
 ```json
 {
-  "hook_line": "The flattest chip-timed 5K in the city runs a loop most Seattle runners already know by heart.",
+  "hook_line": "A flat, chip-timed 5K takes the Green Lake inner loop on August 22, with a beer garden at the north end after.",
   "sections": [
     {
-      "heading": "A loop with no excuse built into it",
+      "heading": "A flat loop Seattle runners already know",
       "body": "One continuous paragraph. No line breaks anywhere in this string."
     },
     {
@@ -352,7 +352,7 @@ Return one JSON object and nothing else. No preamble, no commentary, no code fen
     }
   ],
   "disclaimer": "Event details can change. Confirm with the organizer before you go.",
-  "meta_title": "Green Lake Summer 5K: Seattle's Flattest August Race",
+  "meta_title": "Green Lake Summer 5K: A Flat Loop and a Beer Garden",
   "meta_description": "The Green Lake Summer 5K runs August 22 in Green Lake, a chip-timed loop with a beer garden at the north end and registration open now.",
   "slug_stem": "green-lake-summer-5k",
   "internal_link_suggestions": [

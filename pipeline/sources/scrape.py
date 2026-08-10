@@ -45,6 +45,7 @@ from .base import (
     http_get,
     normalize_dt,
     parse_dt_range,
+    set_polite_delay,
     strip_html,
     within_window,
 )
@@ -328,8 +329,16 @@ class SiteSpec:
     max_detail_pages: int = DEFAULT_MAX_DETAIL_PAGES
 
 
+#: config key -> SiteSpec field, for the names config uses natively.
+_FIELD_ALIASES = {
+    "url": "listing_url",
+    "name": "source",
+    "source": "source",
+}
+
 _OVERRIDABLE_FIELDS = frozenset(
     {
+        "source",
         "listing_url",
         "card_selectors",
         "title_selectors",
@@ -347,9 +356,15 @@ _OVERRIDABLE_FIELDS = frozenset(
 
 
 def _apply_overrides(spec: SiteSpec, site_cfg: Mapping[str, Any]) -> SiteSpec:
-    """Return *spec* with any recognised keys from *site_cfg* applied."""
+    """Return *spec* with any recognised keys from *site_cfg* applied.
+
+    Accepts both the SiteSpec field names and the shorter names used in
+    ``config/sources.yaml`` (``url`` for the listing page, ``name`` for
+    the source label).
+    """
     overrides: dict[str, Any] = {}
     for key, value in site_cfg.items():
+        key = _FIELD_ALIASES.get(key, key)
         if key not in _OVERRIDABLE_FIELDS or value is None:
             continue
         if key.endswith("_selectors"):
@@ -716,11 +731,13 @@ SCRAPERS: dict[str, ScraperFn] = {
 
 
 def _iter_site_configs(cfg: Mapping[str, Any]) -> Iterable[tuple[str, Mapping[str, Any]]]:
-    """Yield ``(site_name, site_cfg)`` pairs from the pipeline config.
+    """Yield ``(scraper_name, site_cfg)`` pairs from the pipeline config.
 
     Accepts ``["do206", ...]``, ``[{"name": "do206", ...}, ...]`` and
-    ``{"do206": {...}}``. With nothing configured, every registered
-    scraper runs with default settings.
+    ``{"do206": {...}}``. The registry key comes from ``scraper`` when
+    present, so a site's display ``name`` can differ from the scraper it
+    reuses. With nothing configured, every registered scraper runs with
+    default settings.
     """
     scrape_cfg = cfg.get("scrape", cfg) if isinstance(cfg, Mapping) else {}
     sites = scrape_cfg.get("sites") if isinstance(scrape_cfg, Mapping) else None
@@ -739,7 +756,7 @@ def _iter_site_configs(cfg: Mapping[str, Any]) -> Iterable[tuple[str, Mapping[st
         if isinstance(entry, str):
             yield entry, {}
         elif isinstance(entry, Mapping):
-            name = entry.get("name") or entry.get("source")
+            name = entry.get("scraper") or entry.get("name") or entry.get("source")
             if name:
                 yield str(name), entry
             else:
@@ -751,17 +768,21 @@ def _iter_site_configs(cfg: Mapping[str, Any]) -> Iterable[tuple[str, Mapping[st
 def fetch(cfg: dict, window_days: int = 10) -> list[dict]:
     """Return raw event dicts for events starting within window_days from now.
 
+    Accepts either the ``scrape`` sub-config (as ``stages/gather.py``
+    passes it) or a full config containing a ``scrape`` key.
+
     Runs every configured site scraper and concatenates the results. By
     default a failing scraper propagates its :class:`SourceError` so the
-    caller decides what to do; set ``cfg["scrape"]["continue_on_error"] =
-    True`` to log and skip broken sites instead.
-
-    Disable a site with ``{"name": "do206", "enabled": false}``.
+    caller decides what to do; set ``continue_on_error: true`` to log and
+    skip broken sites instead. Disable one site with
+    ``{"name": "do206", "enabled": false}``.
     """
-    scrape_cfg = cfg.get("scrape", {}) if isinstance(cfg, Mapping) else {}
-    continue_on_error = bool(
-        scrape_cfg.get("continue_on_error", False) if isinstance(scrape_cfg, Mapping) else False
-    )
+    scrape_cfg = cfg.get("scrape", cfg) if isinstance(cfg, Mapping) else {}
+    if not isinstance(scrape_cfg, Mapping):
+        scrape_cfg = {}
+    continue_on_error = bool(scrape_cfg.get("continue_on_error", False))
+    if scrape_cfg.get("host_delay_seconds") is not None:
+        set_polite_delay(scrape_cfg["host_delay_seconds"])
 
     events: list[RawEvent] = []
     for name, site_cfg in _iter_site_configs(cfg):

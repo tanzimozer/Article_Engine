@@ -130,10 +130,10 @@ Return one JSON object and nothing else. No preamble, no commentary, no code fen
 ```json
 {
   "revised": {
-    "hook_line": "The flattest chip-timed 5K in the city runs a loop most Seattle runners already know by heart.",
+    "hook_line": "A flat, chip-timed 5K takes the Green Lake inner loop on August 22, with a beer garden at the north end after.",
     "sections": [
       {
-        "heading": "A loop with no excuse built into it",
+        "heading": "A flat loop Seattle runners already know",
         "body": "The full paragraph after edits, one continuous paragraph, no line breaks."
       },
       {
@@ -150,7 +150,7 @@ Return one JSON object and nothing else. No preamble, no commentary, no code fen
       "reason": "Untraceable claim. No participant count appears in event, transit or verification, and no prior edition is documented in the input."
     },
     {
-      "original": "$30 gets you a chip and a finisher photo",
+      "original": "$30 covers the chip and a finisher photo",
       "action": "corrected",
       "reason": "Price conflict. event.price is \"$35\", verified at Stage 3 against the Eventbrite listing. Replaced $30 with $35 and changed nothing else in the sentence."
     },

@@ -181,7 +181,7 @@ Return one JSON object and nothing else. No preamble, no commentary, no code fen
     },
     {
       "claim": "The primary phrase appears in no H2, so the section headings carry no keyword signal at all.",
-      "excerpt": "A loop with no excuse built into it"
+      "excerpt": "A flat loop Seattle runners already know"
     },
     {
       "claim": "Anchor text is non-descriptive and tells a reader nothing about the target post.",

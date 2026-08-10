@@ -70,6 +70,30 @@ def run(conn: sqlite3.Connection, cfg: dict[str, Any],
         if revised:
             draft = {**draft, **revised}
 
+        # The fact-checker can only rewrite hook_line, sections and disclaimer.
+        # A bad claim in meta_description is real but unreachable from here, so
+        # it reports it and leaves the field alone. Looping on that would burn
+        # all three attempts on something this stage cannot fix — send it back
+        # to the writer instead.
+        out_of_scope = [
+            entry for entry in result.get("changelog", [])
+            if str(entry.get("reason", "")).startswith("OUT OF SCOPE")
+        ]
+        if out_of_scope and not result.get("clean"):
+            state.update_article(
+                conn, article_id,
+                draft_json=draft,
+                factcheck_json={"changelog": changelog, "loops": loop, "clean": False},
+            )
+            fields = ", ".join(
+                str(e.get("reason", "")).split(":", 1)[0] for e in out_of_scope
+            )
+            return {
+                "ok": False,
+                "reason": f"unfixable here, needs a rewrite: {fields}",
+                "retry_from": "s4_write",
+            }
+
         if result.get("clean"):
             state.update_article(
                 conn, article_id,

@@ -29,23 +29,31 @@ Compute the target range from `event.start_dt`:
 - **Latest preferred:** `event.start_dt` minus 5 days.
 - **Preferred anchor:** the 6-day mark.
 
-Work outward from the 6-day mark to find a legal slot.
-
 ## Reader activity bands
 
-Seattle reader, 25 to 35, corporate job. Pick the highest band that yields a legal slot on the chosen day.
+Seattle reader, 25 to 35, corporate job.
 
-| Rank | Band | Days |
-|---|---|---|
-| 1 | 07:00 to 08:30 | Tue, Wed, Thu |
-| 2 | 11:30 to 13:00 | Mon to Fri |
-| 3 | 17:30 to 19:00 | Mon to Fri |
-| 4 | 09:00 to 11:00 | Sat, Sun |
-| 5 | 07:00 to 08:30 | Mon, Fri |
+| Rank | Band | Days | Midpoint |
+|---|---|---|---|
+| 1 | 07:00 to 08:30 | Tue, Wed, Thu | 07:45 |
+| 2 | 11:30 to 13:00 | Mon to Fri | 12:15 |
+| 3 | 17:30 to 19:00 | Mon to Fri | 18:15 |
+| 4 | 09:00 to 11:00 | Sat, Sun | 10:00 |
+| 5 | 07:00 to 08:30 | Mon, Fri | 07:45 |
 
 **Never schedule between 22:00 and 05:29** on any day. Never schedule Friday after 15:00, which reads as a dead drop into the weekend. Sunday evening is band 4 only, never later.
 
 Minutes must be `:00`, `:15`, `:30` or `:45`. Seconds are always `:00`.
+
+## Selection order
+
+Band rank beats day preference. Run it in this order, every time:
+
+1. List the three candidate dates: 7, 6 and 5 days before `event.start_dt`.
+2. For each candidate date, find the highest-ranked band whose days include that weekday and which yields a time inside the hard bounds that clears queue spacing.
+3. Take the candidate with the **highest-ranked band**. A Monday at rank 2 beats a Sunday at rank 4, even though the Sunday sits closer to the 6-day anchor.
+4. Break a tie between two dates offering the same band by proximity to the 6-day anchor, then by the earlier date.
+5. Inside the chosen band, default to the **band midpoint** from the table. Move within the band in 15-minute steps only when spacing forces it.
 
 ## Queue spacing
 
@@ -90,7 +98,7 @@ The orchestrator drops articles with under 2 days of lead. Your job is to report
 `publish_at` is ISO 8601 with an explicit offset, in America/Los_Angeles:
 
 ```
-2026-08-16T07:30:00-07:00
+2026-08-17T12:15:00-07:00
 ```
 
 - The offset must match the date. Pacific Daylight Time is `-07:00`, from the second Sunday in March through the first Sunday in November. Pacific Standard Time is `-08:00` the rest of the year. In 2026 the boundaries are March 8 and November 1.
@@ -128,8 +136,8 @@ Return one JSON object and nothing else. No preamble, no commentary, no code fen
 
 ```json
 {
-  "publish_at": "2026-08-16T07:30:00-07:00",
-  "reasoning": "Publishes 6 days ahead of the August 22 event, on the preferred anchor. August 16 is a Sunday, so band 1 was unavailable and the slot took band 4 at 09:00 rather than a weekday morning; 07:30 was rejected for that reason and the time was moved to 09:00. The nearest queued article sits at 2026-08-15T12:00:00-07:00, which clears the 24 hour spacing rule with no relaxation needed."
+  "publish_at": "2026-08-17T12:15:00-07:00",
+  "reasoning": "Publishes 5 days ahead of the August 22 event. August 15 and 16 fall on the weekend and offered only band 4, while August 17 is a Monday and reaches band 2, the highest-ranked band available across the three candidate dates, so band rank took the slot to the 5-day edge of the window. The time is the band 2 midpoint. The nearest queued article sits at 2026-08-16T10:00:00-07:00, 26 hours clear, so no spacing relaxation was needed."
 }
 ```
 
