@@ -48,10 +48,12 @@ CACHE_VERSION: int = 1
 
 _CACHE_FILENAME = "gtfs_stops.json"
 
-#: Where the parsed feed is cached. Override with ARTICLE_ENGINE_GTFS_CACHE.
+#: Where the parsed feed is cached. ``state/gtfs_cache/`` is the location
+#: .gitignore reserves for it, so the cache never lands in a commit.
+#: Override with ARTICLE_ENGINE_GTFS_CACHE.
 DEFAULT_CACHE_DIR: str = os.environ.get(
     "ARTICLE_ENGINE_GTFS_CACHE",
-    str(Path(__file__).resolve().parent.parent / ".cache" / "gtfs"),
+    str(Path(__file__).resolve().parent.parent / "state" / "gtfs_cache"),
 )
 
 USER_AGENT: str = (

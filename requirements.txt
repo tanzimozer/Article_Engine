@@ -4,6 +4,11 @@ feedparser>=6.0
 python-dateutil>=2.9
 PyYAML>=6.0
 
+# Windows ships no IANA tz database, so zoneinfo cannot resolve
+# America/Los_Angeles there. Linux runners have one, but every timezone in
+# this pipeline is Pacific and a local run should behave identically to CI.
+tzdata>=2024.1; sys_platform == "win32"
+
 # Google Docs hold queue. Optional at runtime: without
 # GOOGLE_SERVICE_ACCOUNT_JSON the drive module degrades to a logged no-op.
 google-api-python-client>=2.140

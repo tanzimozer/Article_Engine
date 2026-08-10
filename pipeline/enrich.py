@@ -702,8 +702,9 @@ def find_venue_image(venue_name: str, venue_url: str | None) -> str | None:
 # Event enrichment
 # --------------------------------------------------------------------------- #
 
-# field -> (nested key aliases, flat key aliases). The first alias is used when
-# the key is absent and has to be created.
+# field -> (nested key aliases, flat key aliases). Every alias is accepted on
+# read; the FIRST alias is always the write target, and for the flat shape it is
+# the matching ``events`` column name in :mod:`pipeline.state`.
 _VENUE_SPECS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "name": (("name",), ("venue_name",)),
     "address": (("address", "street_address"), ("venue_address", "address")),
@@ -714,7 +715,7 @@ _VENUE_SPECS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
 
 _IMAGE_SPECS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "url": (("url",), ("image_url",)),
-    "alt": (("alt", "alt_text"), ("image_alt", "image_alt_text")),
+    "alt": (("alt", "alt_text"), ("image_alt",)),
     "source": (("source",), ("image_source",)),
 }
 
@@ -750,11 +751,12 @@ def _read(container: dict, keys: Sequence[str]) -> Any:
 
 
 def _write(container: dict, keys: Sequence[str], value: Any) -> None:
-    """Write to whichever alias already exists, otherwise create the first."""
-    for key in keys:
-        if key in container:
-            container[key] = value
-            return
+    """Write to the canonical key, which is always ``keys[0]``.
+
+    Reads accept every alias, but writes never do: the canonical key is the
+    ``events`` column name, and anything written under an alias would be
+    dropped by ``state.upsert_event``, which only persists known columns.
+    """
     container[keys[0]] = value
 
 
