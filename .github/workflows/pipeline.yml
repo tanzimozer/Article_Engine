@@ -1,0 +1,87 @@
+name: Article Engine
+
+# 8am and 8pm Pacific. Cron is UTC-only with no DST awareness, so these drift
+# by an hour twice a year. At this cadence that does not matter.
+on:
+  schedule:
+    - cron: "0 15 * * *"   # 08:00 PDT / 07:00 PST
+    - cron: "0 3 * * *"    # 20:00 PDT / 19:00 PST
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run every stage but never write to Wix"
+        type: boolean
+        default: false
+      skip_gather:
+        description: "Work the existing queue without fetching new events"
+        type: boolean
+        default: false
+
+# One run at a time. Two jobs writing the same state file would mean the
+# loser's work silently disappears.
+concurrency:
+  group: article-engine
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          npm install -g @anthropic-ai/claude-code
+
+      - name: Run pipeline
+        env:
+          # Subscription auth. ANTHROPIC_API_KEY is deliberately absent:
+          # Claude Code prioritises it over subscription auth, which would
+          # silently move every role call onto pay-as-you-go billing.
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          EVENTBRITE_TOKEN: ${{ secrets.EVENTBRITE_TOKEN }}
+          WIX_API_KEY: ${{ secrets.WIX_API_KEY }}
+          WIX_SITE_ID: ${{ secrets.WIX_SITE_ID }}
+          WIX_MEMBER_ID: ${{ secrets.WIX_MEMBER_ID }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          PYTHONUTF8: "1"
+        run: |
+          python -m pipeline.main \
+            ${{ inputs.dry_run && '--dry-run' || '' }} \
+            ${{ inputs.skip_gather && '--skip-gather' || '' }}
+
+      - name: Commit state
+        # Runs even when the pipeline fails, so a partial run is not lost.
+        # The commit also keeps the repo active: GitHub disables scheduled
+        # workflows after 60 days of silence, and nothing else here commits.
+        if: always()
+        run: |
+          git config user.name  "article-engine[bot]"
+          git config user.email "article-engine@users.noreply.github.com"
+          git add state/ || true
+          if git diff --staged --quiet; then
+            git commit --allow-empty -m "chore: keep-alive, no state change"
+          else
+            git commit -m "state: run $(date -u +%Y-%m-%dT%H:%MZ)"
+          fi
+          git push

@@ -1,0 +1,60 @@
+{
+  "_note": [
+    "CURATION REQUIRED. Every neighborhood whose value is null has NO verified stock photo yet and must be curated by hand before it can be used.",
+    "Only entries with a non-null value have been verified: each one was checked on its Unsplash photo page and the 'verified_location' field below quotes the location the photographer actually recorded on that photo.",
+    "Entries were deliberately left null rather than filled with search-result guesses. Unsplash keyword search is NOT location proof - a top result for 'fremont seattle' turned out to be a photo of Portland, Oregon. A wrong photo ID yields a broken image or a picture of the wrong city, which is worse than no image.",
+    "To curate an entry: open the Unsplash photo page, confirm the photographer set a location inside that neighborhood (or the subject is an unmistakable landmark of it), then record url + description + source_page + verified_location in the same shape as the curated entries.",
+    "'description' is used verbatim to build alt text, so write it as a complete sentence ending in a period. The pipeline appends the 'illustrative image' disclaimer itself - do not include one here.",
+    "ATTRIBUTION: Unsplash asks that the photographer be credited. Photographer names were not captured during verification, so add a 'photographer' field from each source_page before these images are published.",
+    "A value may be either a plain URL string or an object with a 'url' key. null means uncurated and makes the pipeline fall back to the 'default' entry."
+  ],
+
+  "Capitol Hill": null,
+  "Ballard": null,
+  "Fremont": null,
+  "South Lake Union": null,
+  "West Seattle": null,
+  "Queen Anne": null,
+  "Wallingford": null,
+  "Georgetown": null,
+  "Columbia City": null,
+  "University District": null,
+  "Belltown": {
+    "url": "https://images.unsplash.com/photo-1563663170081-4ff6736ab249?auto=format&fit=crop&w=1600&q=80",
+    "description": "The Space Needle rising above the rooftops, seen from Cedar Street in Belltown, Seattle.",
+    "source_page": "https://unsplash.com/photos/seattle-washingtons-space-needle-CK_MX9mBGRo",
+    "verified_location": "311 Cedar St, Seattle, WA 98121, USA"
+  },
+  "Pioneer Square": {
+    "url": "https://images.unsplash.com/photo-1741952863073-ddcb0250990c?auto=format&fit=crop&w=1600&q=80",
+    "description": "The Tlingit totem pole in Pioneer Square, Seattle, with the neighborhood's historic buildings behind it.",
+    "source_page": "https://unsplash.com/photos/totem-poles-stand-in-a-public-park-with-buildings-N18u2ZXq_qg",
+    "verified_location": "Pioneer Square Totem Pole, Seattle, WA, USA"
+  },
+  "Green Lake": null,
+  "Magnolia": null,
+  "Beacon Hill": null,
+  "Rainier Valley": null,
+  "Downtown": {
+    "url": "https://images.unsplash.com/photo-1502175353174-a7a70e73b362?auto=format&fit=crop&w=1600&q=80",
+    "description": "An aerial view of the downtown Seattle skyline.",
+    "source_page": "https://unsplash.com/photos/aerial-photography-of-seattle-skyline-skUTVJi8-jc",
+    "verified_location": "Seattle, United States"
+  },
+  "SoDo": {
+    "url": "https://images.unsplash.com/photo-1740760055939-19504a345784?auto=format&fit=crop&w=1600&q=80",
+    "description": "Lumen Field on Occidental Avenue South, in Seattle's stadium district at the north end of SoDo.",
+    "source_page": "https://unsplash.com/photos/a-large-building-with-a-clock-tower-in-the-middle-of-it-8olElxdTYMI",
+    "verified_location": "Lumen Field, Occidental Avenue South, Seattle, WA, USA"
+  },
+  "Northgate": null,
+  "Greenwood": null,
+  "Phinney Ridge": null,
+
+  "default": {
+    "url": "https://images.unsplash.com/photo-1502175353174-a7a70e73b362?auto=format&fit=crop&w=1600&q=80",
+    "description": "An aerial view of the Seattle skyline.",
+    "source_page": "https://unsplash.com/photos/aerial-photography-of-seattle-skyline-skUTVJi8-jc",
+    "verified_location": "Seattle, United States"
+  }
+}

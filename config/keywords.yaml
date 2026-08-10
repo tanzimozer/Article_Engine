@@ -1,0 +1,100 @@
+# Stage 1 keyword pre-filter.
+#
+# This runs BEFORE the Relevance Scorer, purely to keep LLM cost off events
+# that are obviously irrelevant. It is deliberately generous: a false positive
+# costs one scoring call, a false negative loses an article entirely.
+#
+# Matching is case-insensitive against title + description.
+
+fitness:
+  - run
+  - running
+  - 5k
+  - 10k
+  - half marathon
+  - marathon
+  - race
+  - ride
+  - cycling
+  - bike
+  - swim
+  - triathlon
+  - gym
+  - workout
+  - training
+  - bootcamp
+  - hiit
+  - crossfit
+  - lifting
+  - powerlifting
+  - strength
+  - pilates
+  - barre
+  - spin
+  - rowing
+  - climbing
+  - bouldering
+  - martial arts
+  - boxing
+  - kickboxing
+  - jiu jitsu
+  - fitness
+
+wellness:
+  - yoga
+  - meditation
+  - breathwork
+  - mindfulness
+  - sauna
+  - cold plunge
+  - ice bath
+  - recovery
+  - mobility
+  - stretch
+  - massage
+  - spa
+  - wellness
+  - nutrition
+  - dietitian
+  - mental health
+  - sleep
+  - somatic
+  - sound bath
+
+lifestyle:
+  - hike
+  - hiking
+  - trail
+  - outdoor
+  - kayak
+  - paddle
+  - paddleboard
+  - farmers market
+  - market
+  - community
+  - social run
+  - run club
+  - walk
+  - walking
+  - festival
+  - expo
+  - workshop
+  - class
+  - meetup
+  - popup
+  - pop-up
+
+# An event matching any of these is dropped before scoring, regardless of
+# keyword hits. These are categories the publication does not cover.
+exclude:
+  - casino
+  - gambling
+  - vape
+  - cannabis dispensary
+  - crypto
+  - nft
+  - timeshare
+  - mlm
+  - multi-level marketing
+  - webinar          # online-only, no Seattle place
+  - virtual event

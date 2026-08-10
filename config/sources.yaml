@@ -1,0 +1,69 @@
+# Event sources. All free — no paid subscriptions.
+#
+# `priority` drives conflict resolution in the Dedupe Agent when two sources
+# disagree on a field. Lower number wins.
+#
+# A source failing does NOT stop the run. Stage 1 continues with partial
+# coverage, logs the failure, and notifies.
+
+priority_order:
+  - eventbrite
+  - venue_site
+  - visitseattle
+  - seattlegov
+  - do206
+  - thestranger
+  - reddit
+
+eventbrite:
+  enabled: true
+  priority: 1
+  # Token read from EVENTBRITE_TOKEN. Absent token = empty result, not an error.
+  location: "Seattle, WA"
+  radius: "25mi"
+  categories:
+    - "108"   # Sports & Fitness
+    - "107"   # Health & Wellness
+
+rss:
+  enabled: true
+  feeds:
+    - name: thestranger
+      priority: 6
+      url: "https://www.thestranger.com/events/rss"
+    - name: seattlegov
+      priority: 4
+      url: "https://www.seattle.gov/rss/events"
+
+scrape:
+  enabled: true
+  # Polite delay between requests to the same host, in seconds.
+  host_delay_seconds: 2
+  sites:
+    - name: visitseattle
+      priority: 3
+      url: "https://visitseattle.org/events/"
+      scraper: visitseattle
+
+    - name: seattlegov
+      priority: 4
+      url: "https://www.seattle.gov/event-calendar"
+      scraper: seattlegov
+
+    - name: do206
+      priority: 5
+      url: "https://do206.com/events"
+      scraper: do206
+
+    - name: thestranger
+      priority: 6
+      url: "https://www.thestranger.com/events"
+      scraper: thestranger
+
+# Venue sites are treated as authoritative for their own events, second only
+# to Eventbrite. Add venues here as they come up; the scraper prefers
+# schema.org Event JSON-LD and falls back to CSS selectors.
+venue_sites:
+  enabled: true
+  priority: 2
+  sites: []

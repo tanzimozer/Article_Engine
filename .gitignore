@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# GTFS feeds are downloaded and cached at runtime. They are large and
+# regenerable; the 7-day TTL handles freshness.
+state/gtfs_cache/
+
+.DS_Store
+*.log
+
+# state/pipeline.db is deliberately NOT ignored. It is the source of truth and
+# is committed every run, which also keeps the scheduled workflow alive.

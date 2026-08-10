@@ -1,0 +1,118 @@
+# Article Engine settings.
+# Every value here is a locked decision from SPEC.md. Change SPEC.md first.
+
+pipeline:
+  # Events starting within this many days are candidates.
+  event_window_days: 10
+  event_window_min_days: 7
+
+  # Articles processed per run. Leftovers requeue for the next run.
+  max_articles_per_run: 5
+
+  # Hard stop, in seconds. Private repo gets 2000 Actions minutes/month;
+  # at 2 runs/day that is roughly 33 minutes per run.
+  run_timeout_seconds: 1800
+
+  # One article at a time through stages 3-9.
+  concurrency: 1
+
+thresholds:
+  # Relevance Scorer: mean of category_fit, audience_fit, timeliness.
+  relevance_pass_average: 7.0
+
+  # Judge panel: every dimension must clear this.
+  judge_pass_score: 8
+
+  # Content revise loops before an article is held for a human.
+  max_revise_attempts: 3
+
+  # How many times an article may bounce back to the human before it is archived.
+  max_reholds: 2
+
+  # Infrastructure failures are a separate class from content failures.
+  infra_retry_attempts: 3
+  infra_retry_backoff_seconds: 5
+
+article:
+  word_count_min: 800
+  word_count_max: 1200
+  sections_min: 5
+  sections_max: 6
+  meta_title_max: 60
+  meta_title_suffix: " | Seattle Fitness Mag"
+  meta_description_max: 155
+  internal_links_min: 1
+  internal_links_max: 2
+
+  # Fields in the details box, in render order.
+  # `register` is omitted entirely when the event has no registration page.
+  details_box_fields:
+    - when
+    - where
+    - cost
+    - register
+    - skill_level
+    - what_to_bring
+
+  disclaimer: >-
+    Event details can change. Confirm with the organizer before you go.
+
+scheduling:
+  # Slot Scheduler targets this many days ahead of the event.
+  lead_days_min: 5
+  lead_days_max: 7
+
+  # Events closer than this are dropped rather than left to starve in the queue.
+  drop_if_lead_days_below: 2
+
+  timezone: America/Los_Angeles
+
+wix:
+  site_id: "25296528-c352-482d-9b5b-e143b426d2cd"
+  api_base: "https://www.wixapis.com"
+
+  # Live category IDs on seattlefitnessmag.com.
+  categories:
+    the_guide: "8c5800da-74bb-4924-9b17-8f4d042f25b6"
+    training: "2126a2c5-70cb-49d8-acd6-b46709a1043e"
+    culture: "6d28fb40-1d6a-4ff6-a9aa-45a54325105f"
+
+  # Never write to these. Guardrail is enforced in code, not just documented.
+  forbidden_site_ids:
+    - "f916c8b1-134a-4691-9241-5a14bf849078"  # timbr.fit
+    - "ab465896-e5c3-4f5d-bc9d-7f495a6d6be1"  # TIMBR-3, product site
+
+skills:
+  # Read at run time rather than forked, so a voice fix propagates everywhere.
+  repo: "https://github.com/tanzimozer/Skill-Cabinet"
+  house_voice: "skills/timbr/magazine-eic/references/house.md"
+  eic_harness: "skills/timbr/magazine-eic/SKILL.md"
+  rubric: "timbr_eval_v2/RUBRIC.md"
+  hardgate: "timbr_eval_v2/hardgate.py"
+
+judges:
+  # Six inherited from RUBRIC.md, plus seo, added because the inherited
+  # rubric has no SEO dimension. All seven must pass.
+  - voice_brand_compliance
+  - structural_format_compliance
+  - editorial_value
+  - factual_venue_integrity
+  - seattle_local_specificity
+  - ai_pattern_detection
+  - seo
+
+notify:
+  # Notify on every publish and on every hold or failure.
+  email_to: "timbr.tools@gmail.com"
+  on_publish: true
+  on_hold: true
+  on_infra_failure: true
+
+drive:
+  # Human-facing artifacts. Two-way for the hold queue only; everything
+  # else is a one-way mirror.
+  hold_queue_folder: "Article_Engine/holds"
+  archive_folder: "Article_Engine/archive"
+  reports_folder: "Article_Engine/reports"
+  approval_status_line: "STATUS:"
+  approved_value: "APPROVED"

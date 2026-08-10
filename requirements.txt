@@ -1,0 +1,10 @@
+requests>=2.32
+beautifulsoup4>=4.12
+feedparser>=6.0
+python-dateutil>=2.9
+PyYAML>=6.0
+
+# Google Docs hold queue. Optional at runtime: without
+# GOOGLE_SERVICE_ACCOUNT_JSON the drive module degrades to a logged no-op.
+google-api-python-client>=2.140
+google-auth>=2.34
