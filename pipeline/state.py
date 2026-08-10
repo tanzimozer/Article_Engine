@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS events (
     end_dt            TEXT,
     venue_name        TEXT,
     venue_address     TEXT,
+    venue_url         TEXT,               -- the venue's OWN site, not the listing
     lat               REAL,
     lon               REAL,
     neighborhood      TEXT,
@@ -265,10 +266,14 @@ def clear_candidates(conn: sqlite3.Connection, ids: list[str]) -> None:
 # Events
 # --------------------------------------------------------------------------
 
+# Only these persist. A key not listed here is silently dropped by
+# upsert_event, which is why enrichment writes `transit_json` rather than
+# `transit` — the near-miss cost a debugging round already.
 _EVENT_FIELDS = (
-    "title description start_dt end_dt venue_name venue_address lat lon "
-    "neighborhood price register_url skill_level what_to_bring image_url "
-    "image_alt transit_json provenance_json sources_json relevance_json verified"
+    "title description start_dt end_dt venue_name venue_address venue_url "
+    "lat lon neighborhood price register_url skill_level what_to_bring "
+    "image_url image_alt transit_json provenance_json sources_json "
+    "relevance_json verified"
 ).split()
 
 

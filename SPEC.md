@@ -175,6 +175,22 @@ and Wix's auto-slug would collide on them.
 Alt text that reads as a documentary claim about a real business fails the
 factual gate. This is an inherited precedent, not a new rule.
 
+**Known gap.** The venue-photo path needs `venue_url` — the venue's own site,
+not the listing it was found on. The column exists but no source populates it
+yet, so in practice every article currently falls through to stock. Scraping an
+Eventbrite listing's OG image and labelling it "from the venue's website" would
+be exactly the misrepresentation the factual gate exists to catch, so the
+fallback is correct behaviour rather than a workaround. Closing this means
+teaching the scrapers to follow the venue link on an event page.
+
+**The stock library is 5 of 22 curated.** The rest are `null` on purpose. The
+top Unsplash result for "fremont seattle" is a photograph of Portland, and
+every filled entry was checked against the photographer's recorded location.
+When an uncurated neighborhood falls back to the default image, the alt text
+describes the skyline photo actually shown and does not name the neighborhood —
+calling a generic photo "a street view in Ballard" is the same fabrication in a
+smaller font.
+
 ### Location
 
 - **Address text only.** No map embed, no map link.
