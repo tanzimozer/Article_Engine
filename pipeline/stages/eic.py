@@ -19,6 +19,7 @@ import sqlite3
 from typing import Any
 
 from pipeline import roles, skills, state
+from pipeline.stages.judges import research_trail
 from pipeline.errors import Held, InfraFailure
 
 log = logging.getLogger(__name__)
@@ -79,6 +80,15 @@ def run(conn: sqlite3.Connection, cfg: dict[str, Any],
             "sources_checked": json.loads(event.get("sources_json") or "[]"),
             "relevance_score": article.get("relevance_avg"),
         },
+        # The evidence, not just a reference to it. `sources_checked` is a list
+        # of internal member ids -- literally ["169169"] -- and on its own it
+        # made the EIC hold an article for seven claims that were fully sourced:
+        # four of five price points, the race-day schedule, the Kids Dash time.
+        # All of them sit in the trail below. A reviewer that cannot see the
+        # evidence correctly concludes there is none.
+        "research": json.loads(article.get("research_json") or "{}"),
+        "research_trail": research_trail(event),
+        "venue_context": json.loads(event.get("venue_context_json") or "[]"),
     }
 
     try:

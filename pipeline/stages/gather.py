@@ -14,8 +14,10 @@ free sources precisely so no single one is load-bearing.
 from __future__ import annotations
 
 import logging
+import re
 import sqlite3
 from datetime import datetime, timedelta
+from functools import lru_cache
 from typing import Any
 
 from dateutil import parser as dateparser
@@ -40,6 +42,21 @@ def _within_window(start_dt: str | None, min_days: int, max_days: int) -> bool:
     return timedelta(days=0) <= delta <= timedelta(days=max_days)
 
 
+@lru_cache(maxsize=None)
+def _term_pattern(term: str) -> re.Pattern[str]:
+    """Whole-word matcher for one keyword.
+
+    Substring matching made "run" fire on "brunch" and "runs through
+    November", "ride" on "bride" and "race" on "bracelet" -- a third of a
+    general city calendar reached the scorer on words like those. Generous
+    is the point, but generous about *words*, not about letters.
+
+    Uses lookarounds rather than ``\\b`` so multi-word terms ("half
+    marathon") and digit-leading terms ("5k") behave the same way.
+    """
+    return re.compile(rf"(?<!\w){re.escape(term)}(?!\w)")
+
+
 def _keyword_match(raw: dict[str, Any], keywords: dict[str, Any]) -> bool:
     """Generous pre-filter.
 
@@ -49,12 +66,12 @@ def _keyword_match(raw: dict[str, Any], keywords: dict[str, Any]) -> bool:
     haystack = f"{raw.get('title', '')} {raw.get('description', '')}".lower()
 
     for term in keywords.get("exclude", []):
-        if term.lower() in haystack:
+        if _term_pattern(str(term).lower()).search(haystack):
             return False
 
     for group in ("fitness", "wellness", "lifestyle"):
         for term in keywords.get(group, []):
-            if term.lower() in haystack:
+            if _term_pattern(str(term).lower()).search(haystack):
                 return True
     return False
 

@@ -73,6 +73,8 @@ CREATE TABLE IF NOT EXISTS events (
     image_url         TEXT,
     image_alt         TEXT,
     transit_json      TEXT,
+    venue_context_json TEXT,             -- cited descriptions of the venue
+    content_type      TEXT NOT NULL DEFAULT 'event',  -- event | venue_feature
     provenance_json   TEXT,
     sources_json      TEXT,
     relevance_json    TEXT,
@@ -91,6 +93,8 @@ CREATE TABLE IF NOT EXISTS articles (
     reholds           INTEGER NOT NULL DEFAULT 0,
     relevance_avg     REAL,
     draft_json        TEXT,
+    research_json     TEXT,              -- stage 3b fact trail
+    voice_json        TEXT,              -- stage 4b edit log
     factcheck_json    TEXT,
     judges_json       TEXT,
     eic_json          TEXT,
@@ -163,6 +167,7 @@ def connect(db_path: Path | None = None) -> Iterator[sqlite3.Connection]:
     conn.row_factory = sqlite3.Row
     try:
         conn.executescript(SCHEMA)
+        _migrate(conn)
         yield conn
         conn.commit()
     except Exception:
@@ -272,9 +277,30 @@ def clear_candidates(conn: sqlite3.Connection, ids: list[str]) -> None:
 _EVENT_FIELDS = (
     "title description start_dt end_dt venue_name venue_address venue_url "
     "lat lon neighborhood price register_url skill_level what_to_bring "
-    "image_url image_alt transit_json provenance_json sources_json "
+    "image_url image_alt transit_json venue_context_json content_type "
+    "provenance_json sources_json "
     "relevance_json verified"
 ).split()
+
+#: Columns added after the schema first shipped. `CREATE TABLE IF NOT EXISTS`
+#: never touches an existing table, and this database is committed to the repo
+#: and outlives every deploy, so a new column has to be added explicitly.
+#: Additive only: SQLite can add a column but not drop one.
+_ADDED_COLUMNS: tuple[tuple[str, str, str], ...] = (
+    ("events", "venue_context_json", "TEXT"),
+    ("events", "content_type", "TEXT NOT NULL DEFAULT 'event'"),
+    ("articles", "research_json", "TEXT"),
+    ("articles", "voice_json", "TEXT"),
+)
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Add any column introduced after this database was created."""
+    for table, column, decl in _ADDED_COLUMNS:
+        present = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+        if column not in present:
+            log.info("migrating %s: adding column %s", table, column)
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
 
 
 def upsert_event(conn: sqlite3.Connection, event: dict[str, Any]) -> str:
@@ -286,7 +312,8 @@ def upsert_event(conn: sqlite3.Connection, event: dict[str, Any]) -> str:
     event_id = event["id"]
     ts = now()
     row = {k: event.get(k) for k in _EVENT_FIELDS}
-    for key in ("transit_json", "provenance_json", "sources_json", "relevance_json"):
+    for key in ("transit_json", "venue_context_json", "provenance_json",
+                "sources_json", "relevance_json"):
         if row.get(key) is not None and not isinstance(row[key], str):
             row[key] = json.dumps(row[key])
     row["verified"] = int(bool(row.get("verified")))

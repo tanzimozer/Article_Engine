@@ -149,26 +149,44 @@ def _in_seattle_bounds(lat: float, lon: float) -> bool:
     return _LAT_MIN <= lat <= _LAT_MAX and _LON_MIN <= lon <= _LON_MAX
 
 
-def geocode(venue_name: str, address: str | None) -> tuple[float, float] | None:
-    """Return ``(lat, lon)`` for a venue, or ``None``.
+def _geocode_queries(name: str, address: str) -> list[str]:
+    """Query ladder for one venue, most specific first.
 
-    Uses Nominatim (OpenStreetMap) -- free, no API key. Results outside the
-    greater-Seattle sanity box are rejected rather than returned, because
-    Nominatim will happily match a same-named venue in another city.
+    A single attempt is too brittle for how event sources actually write
+    addresses. An intersection ("74th and Sand Point Wy") or a parenthetical
+    ("Lincoln Park (course map will be emailed)") defeats Nominatim outright,
+    while the same venue name plus its city resolves cleanly. Dropping the
+    street line and retrying costs one second under the rate limit, and it is
+    the difference between an article that knows its neighborhood and transit
+    and one that has neither.
     """
-    name = (venue_name or "").strip()
-    if not name:
-        logger.debug("geocode called without a venue name")
-        return None
-
-    address = (address or "").strip()
+    queries: list[str] = []
     if address:
-        query = f"{name}, {address}"
-    else:
-        query = f"{name}, Seattle, WA"
-    if "seattle" not in query.lower() and "wa" not in query.lower().split():
-        query = f"{query}, Seattle, WA"
+        queries.append(f"{name}, {address}")
+        # Same venue, street line removed: keep city, state and postcode.
+        tail = ", ".join(part.strip() for part in address.split(",")[1:] if part.strip())
+        if tail:
+            queries.append(f"{name}, {tail}")
+    queries.append(f"{name}, Seattle, WA")
+    if address:
+        # Last resort: the address alone, in case the venue name is the part
+        # Nominatim cannot match.
+        queries.append(address)
 
+    ordered: list[str] = []
+    seen: set[str] = set()
+    for query in queries:
+        if "seattle" not in query.lower():
+            query = f"{query}, Seattle, WA"
+        key = query.lower()
+        if key not in seen:
+            seen.add(key)
+            ordered.append(query)
+    return ordered
+
+
+def _geocode_once(query: str) -> tuple[float, float] | None:
+    """One Nominatim lookup, cached per query string."""
     cache_key = query.lower()
     if cache_key in _geocode_cache:
         return _geocode_cache[cache_key]
@@ -202,11 +220,38 @@ def geocode(venue_name: str, address: str | None) -> tuple[float, float] | None:
                     lat,
                     lon,
                 )
-    else:
-        logger.info("No geocode result for %r", query)
 
     _geocode_cache[cache_key] = result
     return result
+
+
+def geocode(venue_name: str, address: str | None) -> tuple[float, float] | None:
+    """Return ``(lat, lon)`` for a venue, or ``None``.
+
+    Uses Nominatim (OpenStreetMap) -- free, no API key. Tries progressively
+    looser queries (see :func:`_geocode_queries`) and returns the first hit
+    inside the greater-Seattle sanity box. Out-of-area results are rejected
+    rather than returned, because Nominatim will happily match a same-named
+    venue in another city.
+    """
+    name = (venue_name or "").strip()
+    if not name:
+        logger.debug("geocode called without a venue name")
+        return None
+
+    queries = _geocode_queries(name, (address or "").strip())
+    for attempt, query in enumerate(queries, start=1):
+        result = _geocode_once(query)
+        if result is not None:
+            if attempt > 1:
+                logger.info(
+                    "Geocoded %r on attempt %d of %d using %r",
+                    name, attempt, len(queries), query,
+                )
+            return result
+
+    logger.info("No geocode result for %r after %d attempt(s)", name, len(queries))
+    return None
 
 
 def neighborhood_for(lat: float, lon: float) -> str | None:
@@ -727,6 +772,10 @@ _NEIGHBORHOOD_KEYS = ("neighborhood", "neighbourhood")
 # state.upsert_event serialises the list itself, so it is stored unserialised.
 _TRANSIT_KEYS = ("transit_json", "transit", "transit_stops")
 
+#: Same reasoning as ``_TRANSIT_KEYS``: the column is ``venue_context_json``,
+#: so that name comes first or ``upsert_event`` silently drops the value.
+_VENUE_CONTEXT_KEYS = ("venue_context_json", "venue_context")
+
 
 def _container(event: dict, group: str) -> tuple[dict, bool]:
     """Return the dict venue/image fields live on, and whether it is nested."""
@@ -880,5 +929,27 @@ def enrich_event(event: dict) -> dict:
         else:
             logger.info("No coordinates for %r; transit stays None", name)
         _write(enriched, _TRANSIT_KEYS, stops)
+
+    # 5. Venue context ------------------------------------------------------ #
+    # Cited description of the place itself. Without it the local-specificity
+    # judge and the fact-checker deadlock: one demands terrain and neighborhood
+    # texture, the other deletes any claim it cannot trace to a source. Each
+    # entry carries the URL it came from, so a sentence built on it survives
+    # fact-checking and a judge can audit it.
+    if _read(enriched, _VENUE_CONTEXT_KEYS) is None:
+        context: list[dict] | None = None
+        if name:
+            try:
+                from pipeline import venue_context as venue_context_module
+
+                found_ctx = venue_context_module.fetch(
+                    str(name), str(neighborhood) if neighborhood else None
+                )
+                context = found_ctx or None
+                if not found_ctx:
+                    logger.info("No venue context found for %r", name)
+            except Exception:
+                logger.exception("Venue context lookup failed for %r", name)
+        _write(enriched, _VENUE_CONTEXT_KEYS, context)
 
     return enriched

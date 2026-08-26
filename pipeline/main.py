@@ -37,8 +37,10 @@ from pipeline.stages import (
     gather,
     judges,
     publish,
+    research,
     sweep,
     validate,
+    voice,
     write,
 )
 
@@ -50,7 +52,9 @@ CONFIG_DIR = Path(__file__).resolve().parent.parent / "config"
 # not per article, so they sit outside this list.
 STAGE_ORDER = [
     "s3_validate",
+    "s3b_research",
     "s4_write",
+    "s4b_voice",
     "s5_factcheck",
     "s6_judges",
     "s7_eic",
@@ -59,7 +63,9 @@ STAGE_ORDER = [
 
 STAGE_FN = {
     "s3_validate": validate.run,
+    "s3b_research": research.run,
     "s4_write": write.run,
+    "s4b_voice": voice.run,
     "s5_factcheck": factcheck.run,
     "s6_judges": judges.run,
     "s7_eic": eic.run,
@@ -143,9 +149,17 @@ def process_article(conn, cfg: dict[str, Any], article: dict[str, Any]) -> str:
         if outcome.get("ok"):
             continue
 
+        reason = outcome.get("reason", "stage returned not-ok")
+
+        # A killed assignment is finished, not failed. Research returns this
+        # when a subject has no verifiable angle at all; retrying would spend
+        # three more attempts rediscovering that there is nothing to write.
+        if outcome.get("drop"):
+            log.info("%s dropped at %s: %s", article_id, stage_name, reason)
+            return "dropped"
+
         # Content failure. Revise and retry, up to the cap, then hand to a human.
         attempt = state.bump_attempt(conn, article_id, stage_name)
-        reason = outcome.get("reason", "stage returned not-ok")
         if attempt >= max_attempts:
             _hold_article(conn, cfg, article_id, stage_name,
                           f"failed {attempt} attempts: {reason}")
@@ -154,8 +168,11 @@ def process_article(conn, cfg: dict[str, Any], article: dict[str, Any]) -> str:
         # Judge and fact-check failures route back to the writer with notes,
         # rather than re-running the failing stage against unchanged text.
         retry_from = outcome.get("retry_from", "s4_write")
-        log.info("%s failed %s (attempt %d), routing back to %s",
-                 article_id, stage_name, attempt, retry_from)
+        # The reason travels with the hold path but used to be dropped here,
+        # on the far more common requeue path -- leaving a log that said an
+        # article failed without ever saying why.
+        log.info("%s failed %s (attempt %d), routing back to %s: %s",
+                 article_id, stage_name, attempt, retry_from, reason)
         state.update_article(conn, article_id, stage=retry_from, status="queued")
         return "requeued"
 

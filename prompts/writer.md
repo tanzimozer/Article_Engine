@@ -15,6 +15,8 @@ Stage 5 strips any claim that is not traceable to the input. Stage 6 seats seven
 - `event`: the verified canonical record: `title`, `description`, `start_dt`, `end_dt`, `venue_name`, `venue_address`, `neighborhood`, `price`, `register_url`, `url`.
 - `verification`: the Stage 3 verdict and the URLs checked.
 - `transit`: verified GTFS data from King County Metro and Sound Transit.
+- `research`: the Stage 3b fact trail. Everything the pipeline went and learned about this subject, each fact carrying `source_url` and a `confidence` of high, medium, low or unverified. Also `conflicts` (where sources disagreed) and `unverified` (what could not be confirmed). **This is your richest material.**
+- `venue_context`: cited descriptions of the venue, each with the `url` it was fetched from. Wikipedia and the City of Seattle's own parks pages. This is where terrain, history and neighborhood character come from.
 - `related_posts`: existing seattlefitnessmag.com posts, with slugs and titles. May be empty.
 - `revision_notes`: present only on a re-run. Fix exactly what they name and change nothing else.
 
@@ -73,6 +75,22 @@ The press-release line is the one that kills event copy. `event.description` is 
 
 > **No identical entry templates.** Ten venues run through the same clause in the same slot
 > reads as a rendered database table. Vary them.
+
+> **No profound closers.** Ending a paragraph by zooming out to something larger is the most
+> reliable machine tell in this whole handbook, and it is invisible from inside the sentence.
+> Real examples, all flagged: "It will hold this too." "Each era left something on this
+> ground." "That compression is the pitch." Same move every time — small fact, then a short
+> resonant line implying significance. Once in a piece is a flourish. Twice is a tic. A judge
+> found three and scored the draft 5 out of 8. End on the concrete thing instead, and trust
+> the reader to feel its weight without being told it has any.
+
+> **Rule of three is not a default.** "X, Y, and Z" three times in one piece is scaffolding,
+> not style. Vary list length, or break the list into separate sentences.
+
+> **A catalogue is not writing.** Listing every amenity a venue offers, or every distance on
+> a race card, hands the reader a table with the pipes removed. Pick the two or three that
+> matter to *this* morning and say why they matter. The rest is reference material, and the
+> reader can find it on the organiser's own page.
 
 > **No fictional cold-opens.** A named person plus a present-tense physical action plus a
 > staged moment ("Maya laces her shoes before dawn") is fiction unless it happened and you
@@ -184,9 +202,11 @@ Exactly this shape. Code assembles the rest.
 
 ### hook_line
 
-One line. One or two sentences, 30 words maximum. It is the first thing on the page.
+The opening. **150 to 200 words**, one continuous paragraph, no line break. It is the first thing on the page.
 
 No TL;DR, no summary box, no key-takeaways line, no standfirst, no dek, no label above it. It is not a heading and carries no `#`.
+
+This is a nut graf, not a teaser. It does real work: open on the most specific concrete thing you have, then say what the piece is actually about. The reference article opens with two founders in 2011 leaping off their own staircase to test whether the foam floor would catch them, then turns that into a thesis — everyone thinks this gym started in Fremont, and it didn't. A 30-word hook cannot carry that, which is why this used to be capped at 30 and produced openings that named a venue and stopped.
 
 It carries the piece. Per the handbook: it earns the second sentence or the reader is gone.
 
@@ -199,8 +219,12 @@ It carries the piece. Per the handbook: it earns the second sentence or the read
 - **No bullets, no numbered lists, no dashes at line start, no bullet glyphs.**
 - **No FAQ section.** No "Frequently asked", no question-and-answer pairs, no question-form heading standing in for an argument.
 - **No byline.** The publication signs as the brand.
-- Each body runs roughly 150 to 200 words. Vary them, because six paragraphs of identical length is itself a machine tell.
+- Each body runs roughly **110 to 150 words**. Vary them, because six paragraphs of identical length is itself a machine tell. The reference article's six sections run 101, 105, 105, 105, 109 and 134 words; short sections are what let the piece stay dense instead of restating itself to fill space.
+- **The total is what is measured, not the parts.** These per-part figures are typical, not a budget to spend down: a draft built at the bottom of every range lands near 750 words and is rejected on the spot. If your sections come in short, the opening carries more. Check the total before you return, every time.
 - Headings run under 60 characters, carry no colon-plus-teaser construction, and no two repeat the same noun phrase.
+- **The event's own name goes in `hook_line` and in exactly one heading.** Not all of them — one, whichever it fits most naturally. This is the single most-missed rule in this prompt: five consecutive drafts opened with the venue instead of the event and put the name in no heading at all, and search scored them 4 out of 8 every time for it. "Magnuson Park hosts five race distances" fails. "The Summer Spirit Run puts five distances on one Magnuson morning" passes.
+- **Prefer sections that each add something.** Restating an earlier point in new words is padding, and a judge once counted "eight obstacles on a 5K loop" said four different ways in a single section. Aim for one clear idea per section. This is a preference, not a gate: if the verified material genuinely will not stretch, a slightly thinner section beats a fabricated one, and beats stalling in search of a perfect arrangement.
+- **Lean on venue history sparingly.** `venue_context` is often the richest thing in the payload, which makes it the easiest to over-write. The reader came for a race. One section's worth is usually right; two is the ceiling.
 
 ### disclaimer
 
@@ -216,9 +240,15 @@ Use exactly that string unless the payload supplies a different `disclaimer` val
 
 The gate measures the assembled article at **800 to 1200 body words**, headings stripped, details box included.
 
-Your prose, meaning `hook_line` plus every section `body` plus `disclaimer`, must land between **880 and 1120 words**. Aim 950 to 1050. Code adds roughly 25 to 45 words of details box on top, and those count against the 1200 ceiling.
+Your prose, meaning `hook_line` plus every section `body` plus `disclaimer`, must land between **860 and 1120 words**. Aim 880 to 960. Code adds roughly 25 to 45 words of details box on top, and those count against the 1200 ceiling.
 
-Headings do not count. Do not pad a thin event to reach the floor: if the verified facts cannot support 880 words of non-repetitive prose, write the best 880 you can from the geography, the format, the neighborhood and the calendar context, and never from invention.
+These numbers come from a published reference article, not from a preference. That piece runs 860 words total: a 201-word opening and six sections averaging 110 words each. An earlier version of this prompt demanded 1000 words minimum with 150-to-200-word sections, which is roughly 25% more than the proven standard — and the judges then failed the results for padding and restatement. The floor was manufacturing the defect it was being blamed for.
+
+The gate behind this sits a little lower than 860, deliberately, so landing just under costs nothing. A draft once came in at 987 against a 1000 floor and was thrown away over thirteen words, which is a bad trade for a call that takes half an hour. Aim for the target; do not contort the piece to hit a number.
+
+That floor is deliberately well above the article's own. What you hand over is not what publishes: the fact-checker deletes every claim it cannot verify against a source, and two measured runs lost 20% and 52% of the draft that way. A draft that lands on the 800 floor arrives at the panel around 650 and is sent back. Write to 1040 and a normal 20% loss still clears.
+
+Headings do not count. Do not pad a thin event to reach the floor: if the verified facts cannot support 860 words of non-repetitive prose, write the best 860 you can from the geography, the format, the neighborhood and the calendar context, and never from invention. Padding is worse than falling short, because the fact-checker removes invention and you end up shorter than if you had never reached.
 
 ---
 
@@ -266,7 +296,10 @@ One or two sentences of transit in one section is the right amount.
 
 ## FACTS
 
-- Every fact comes from `event`, `transit`, or `verification`. Nothing comes from what you know about Seattle, the sport, the venue or the organizer.
+- Every fact comes from `event`, `transit`, `verification`, `venue_context`, or `research`. Nothing comes from what you know about Seattle, the sport, the venue or the organizer.
+- **Confidence levels are not decoration.** A `high` fact is cross-checked and can carry a flat declarative sentence. A `medium` fact is single-source: state it, but do not build a paragraph's argument on it. A `low` or `unverified` fact is not a fact — leave it out entirely rather than hedging it into the piece.
+- **Where `research.conflicts` lists disagreeing values, do not pick one.** Either omit the field or report the disagreement plainly. The researcher was explicitly forbidden from resolving it silently, and so are you.
+- **`venue_context` is where the place comes from.** Terrain, history, what the grounds are like, how the venue sits in its neighborhood — take all of it from there, and only from there. A run at Magnuson is a run on a former naval air station beside Lake Washington, and that is sayable because `venue_context` says it. What `venue_context` does not say is not sayable: it will not tell you a course is flat, so do not write flat. Earlier drafts scored 3 out of 8 on local specificity for being about race format instead of about a place, and the same drafts had "flat course" cut twice for being invention. Both problems have the same fix, and it is this field.
 - If the input does not cover something you want to claim, cut the claim. Do not fill the gap from memory and do not hedge it.
 - Supporting statistics count. Do not invent a number to prop up the piece. No participant counts, no attendance figures, no elevation gains, no course records, no "one of the fastest-growing" anything.
 - Check every superlative against the input's own numbers before writing it.
@@ -365,7 +398,7 @@ Field contract:
 
 | Field | Type | Rule |
 |---|---|---|
-| `hook_line` | str | One line, 30 words max, no heading marker, no line break, no em-dash. |
+| `hook_line` | str | 150-200 words, one paragraph, no heading marker, no line break, no em-dash. |
 | `sections` | array | Exactly 5 or 6 objects, in reading order. |
 | `sections[].heading` | str | Plain text, no `##`, under 60 characters, no question form, no duplicate noun phrase. |
 | `sections[].body` | str | One continuous paragraph. Contains no `\n`, no bullet, no bold, no heading, no list. |
@@ -377,4 +410,4 @@ Field contract:
 
 No other keys. No nulls anywhere in the object.
 
-Before returning, check these mechanically: zero em-dashes in every string, zero banned-vocab hits, zero banned phrases, zero second-person patterns, 5 or 6 sections, no `\n` inside any `body`, prose word count between 880 and 1120, `meta_title` at or under 60, `meta_description` at or under 155 and carrying both the date and the neighborhood.
+Before returning, check these mechanically: zero em-dashes in every string, zero banned-vocab hits, zero banned phrases, zero second-person patterns, 5 or 6 sections, no `\n` inside any `body`, prose word count between 860 and 1120, `meta_title` at or under 60, `meta_description` at or under 155 and carrying both the date and the neighborhood.

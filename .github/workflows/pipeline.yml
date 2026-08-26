@@ -29,7 +29,11 @@ permissions:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    # One article measured 30 minutes, and a revision roughly doubles it.
+    # The old 35 could not hold even a single article that needed a rewrite.
+    # Kept 20 minutes above run_timeout_seconds so the pipeline stops itself
+    # and commits state rather than being killed mid-write.
+    timeout-minutes: 240
 
     steps:
       - uses: actions/checkout@v4

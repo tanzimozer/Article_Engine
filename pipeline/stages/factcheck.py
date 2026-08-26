@@ -20,6 +20,7 @@ import sqlite3
 from typing import Any
 
 from pipeline import roles, skills, state
+from pipeline.stages.write import prose_words
 from pipeline.errors import Held, InfraFailure
 
 log = logging.getLogger(__name__)
@@ -33,7 +34,11 @@ def run(conn: sqlite3.Connection, cfg: dict[str, Any],
     if not draft:
         return {"ok": False, "reason": "no draft to check", "retry_from": "s4_write"}
 
-    max_loops = cfg["settings"]["thresholds"]["max_revise_attempts"]
+    # Falls back to max_revise_attempts so an older settings file still runs.
+    thresholds = cfg["settings"]["thresholds"]
+    max_loops = thresholds.get(
+        "max_factcheck_loops", thresholds["max_revise_attempts"]
+    )
 
     try:
         house = skills.voice_handbook(cfg)
@@ -42,6 +47,17 @@ def run(conn: sqlite3.Connection, cfg: dict[str, Any],
 
     verified = {k: v for k, v in event.items() if not k.endswith("_json")}
     verified["transit"] = json.loads(event.get("transit_json") or "[]")
+    # Without this the checker deletes every sentence about the venue itself,
+    # because none of it appears in the event record -- which is exactly what
+    # happened to "flat course" twice while the local-specificity judge was
+    # simultaneously failing the article for having no sense of place.
+    verified["venue_context"] = json.loads(event.get("venue_context_json") or "[]")
+    # The stage 3b fact trail. Omitting this is catastrophic and silent: the
+    # writer drafts from research the checker cannot see, so every sourced fact
+    # reads as invention and gets deleted. One run lost 71% of its prose that
+    # way -- packet pickup, lap counts, course surface, terrain, start waves,
+    # all of them verified with URLs, all struck as untraceable.
+    verified["research"] = json.loads(article.get("research_json") or "{}")
 
     changelog: list[dict[str, Any]] = []
 
@@ -60,7 +76,11 @@ def run(conn: sqlite3.Connection, cfg: dict[str, Any],
             result = roles.run_role(
                 "fact_checker", payload,
                 extra_context=f"# VOICE HANDBOOK (do not edit toward it, only avoid violating it)\n\n{house}",
-                timeout_s=600,
+                # Loop 1 measured 529s against a 600s ceiling -- 88% of budget
+                # on a thin article. Every claim added to the draft is another
+                # claim to verify, so this scales with payload the same way the
+                # writer does.
+                timeout_s=1200,
             )
         except roles.RoleError as exc:
             raise InfraFailure(f"fact checker unavailable: {exc}") from exc
@@ -100,6 +120,26 @@ def run(conn: sqlite3.Connection, cfg: dict[str, Any],
                 draft_json=draft,
                 factcheck_json={"changelog": changelog, "loops": loop, "clean": True},
             )
+
+            # Re-measure. write.py checks the word range at draft time only,
+            # so an article that passed there can arrive at the panel at half
+            # the length: the first real run drafted 948 words, fact-checking
+            # removed 28 unsupported claims, and 457 words reached seven judges
+            # who correctly called it thin. Removing unsupported claims is this
+            # stage doing its job; shipping the remains is not.
+            floor = cfg["settings"]["article"]["word_count_min"]
+            words = prose_words(draft)
+            if words < floor:
+                log.info("%s fact-checked clean but fell to %d words (floor %d)",
+                         article_id, words, floor)
+                return {
+                    "ok": False,
+                    "reason": f"fact-checking removed {len(changelog)} claim(s), leaving "
+                              f"{words} words against a {floor}-word floor. The rewrite "
+                              f"needs more verifiable substance, not more assertion.",
+                    "retry_from": "s4_write",
+                }
+
             log.info("%s fact-checked clean after %d loop(s), %d change(s)",
                      article_id, loop, len(changelog))
             return {"ok": True}

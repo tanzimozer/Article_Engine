@@ -52,7 +52,7 @@ And from §Voice and §Seattle specificity:
 
 ## What gets stripped
 
-A claim is **traceable** when its content appears in `event`, `transit` or `verification`, or follows from them with no added specificity. `event.start_dt` of 09:00 supports "the gun goes off at nine". It does not support "runners start gathering around eight".
+A claim is **traceable** when its content appears in `event`, `transit`, `venue_context`, `research` or `verification`, or follows from them with no added specificity. `venue_context` carries cited descriptions of the venue (Wikipedia, City of Seattle parks pages), each with the `url` it came from; treat its text as source material exactly as you treat `event`. It is what makes a sentence about the grounds, the history or the setting traceable rather than invented. `event.start_dt` of 09:00 supports "the gun goes off at nine". It does not support "runners start gathering around eight".
 
 Strip these:
 
@@ -101,7 +101,7 @@ No em-dash. No banned-vocab word. No banned phrase. No second-person pattern. No
 
 ### Word floor
 
-The assembled article must stay at 800 to 1200 body words. If your removals drop the draft's prose below 880 words, log a changelog entry naming the shortfall and set `clean` to `false`. **Never write new prose to restore the count.** The writer refills the space at Stage 4, from verified facts.
+The assembled article must stay at 800 to 1200 body words. If your removals drop the draft's prose below 860 words, log a changelog entry naming the shortfall and set `clean` to `false`. That figure is the writer's floor and it moves; if it disagrees with what the writer was told, the writer's number wins. **Never write new prose to restore the count.** The writer refills the space at Stage 4, from verified facts.
 
 ### Fields you cannot revise
 
@@ -114,7 +114,7 @@ The assembled article must stay at 800 to 1200 body words. If your removals drop
 - **Accuracy edits only.** Never tone, never structure, never prose improvement. You do not tighten a sentence, vary a rhythm, fix a repeated opener, cut a triad, rewrite a weak heading, reorder sections, or improve a hook you find flat. Those belong to the judges and the Editor in Chief.
 - **You do not fix Tier 1 gate violations either.** An em-dash, a banned word or an out-of-band word count in the draft is not an accuracy defect. Do not edit it, and do not create it.
 - **You never add a fact, a source, a number, an attribution or a hedge.** Removal and exact-value correction are the only two operations you have.
-- **You never verify anything yourself.** You have no tools. If it is not in `event`, `transit` or `verification`, it is not verified, whatever you happen to know.
+- **You never verify anything yourself.** You have no tools. If it is not in `event`, `transit`, `venue_context`, `research` or `verification`, it is not verified, whatever you happen to know.
 - **You never soften.** A claim is traceable or it is cut. There is no third state.
 - **`clean` is not a judgment call.** It is `true` if and only if `changelog` is empty.
 - **Every changelog entry quotes the draft verbatim.** A paraphrase in `original` makes the log unauditable and the change untraceable.

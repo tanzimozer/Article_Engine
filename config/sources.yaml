@@ -8,6 +8,7 @@
 
 priority_order:
   - eventbrite
+  - runsignup      # registration platform: system of record for its races
   - venue_site
   - visitseattle
   - seattlegov
@@ -28,37 +29,58 @@ eventbrite:
 rss:
   enabled: true
   feeds:
+    # Both feeds returned HTTP 404 when verified 2026-08-20. Left in place,
+    # disabled, so the URLs are not lost if either is restored.
     - name: thestranger
       priority: 6
       url: "https://www.thestranger.com/events/rss"
+      enabled: false   # 404. everout.com/seattle/events/feed/ is also 404.
     - name: seattlegov
       priority: 4
       url: "https://www.seattle.gov/rss/events"
+      enabled: false   # 404. No working feed found under seattle.gov/rss/.
 
 scrape:
   enabled: true
   # Polite delay between requests to the same host, in seconds.
   host_delay_seconds: 2
+
+  # One broken site must not take the others down with it. The module default
+  # is False, which meant a visitseattle failure aborted the whole adapter
+  # before seattlegov, do206 and thestranger were ever tried -- contradicting
+  # both sources/__init__.py (default True) and the documented rule that a
+  # source failing does not stop the run.
+  continue_on_error: true
+
   sites:
     - name: visitseattle
       priority: 3
       url: "https://visitseattle.org/events/"
       scraper: visitseattle
+      # Reads /wp-json/visitseattle/v1/events; the HTML path is the fallback.
 
+    # Verified 2026-08-20, all three disabled with cause:
     - name: seattlegov
       priority: 4
       url: "https://www.seattle.gov/event-calendar"
       scraper: seattlegov
+      enabled: false   # JS-rendered shell: HTTP 200, 1.4k of text, 0 events.
 
     - name: do206
       priority: 5
       url: "https://do206.com/events"
       scraper: do206
+      enabled: false   # Returns only today's events; ignores every date
+                       # parameter tried, so it can never intersect the
+                       # 7-10 day window. Music/nightlife, not fitness.
 
     - name: thestranger
       priority: 6
       url: "https://www.thestranger.com/events"
       scraper: thestranger
+      enabled: false   # Bot-protected: everout.com returns HTTP 202 with an
+                       # empty body. The one result it did yield was a
+                       # ticket-alert article, not an event.
 
 # Venue sites are treated as authoritative for their own events, second only
 # to Eventbrite. Add venues here as they come up; the scraper prefers

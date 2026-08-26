@@ -16,8 +16,10 @@ import json
 import logging
 import os
 import re
+import shutil
 import subprocess
 import time
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -29,9 +31,15 @@ PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 # no tools at all, which keeps them from wandering off their contract.
 ROLE_TOOLS: dict[str, list[str]] = {
     "cross_check_validator": ["WebFetch"],
+    # The only role that searches. The validator is handed the URLs it must
+    # check; the researcher has to find the subject's own pages first, then
+    # read them. Everything an article knows beyond its original listing
+    # arrives through these two tools.
+    "fact_researcher": ["WebFetch", "WebSearch"],
     "dedupe_agent": [],
     "relevance_scorer": [],
     "writer": [],
+    "voice_editor": [],
     "fact_checker": [],
     "judge_seo": [],
     "slot_scheduler": [],
@@ -98,9 +106,52 @@ def _extract_json(text: str) -> Any:
     raise RoleError(f"no parsable JSON in role output: {text[:400]}")
 
 
+@lru_cache(maxsize=1)
+def _claude_executable() -> str:
+    """Absolute path to the Claude Code CLI.
+
+    On Windows the npm install is a ``claude.CMD`` shim, and ``subprocess``
+    resolves a bare command name against ``.exe`` only -- so ``["claude", ...]``
+    raises ``WinError 2`` even with the CLI plainly on PATH. ``shutil.which``
+    honours PATHEXT and returns the real target on every platform, which
+    avoids reaching for ``shell=True`` with a prompt in the argument list.
+    """
+    found = shutil.which("claude")
+    if not found:
+        raise RoleError(
+            "claude CLI not found on PATH. Install Claude Code, or expose it "
+            "to this process, before running any role."
+        )
+    return found
+
+
+def _kill_tree(proc: "subprocess.Popen[str]") -> None:
+    """Kill *proc* and everything it spawned.
+
+    ``subprocess`` only ever kills the process it started. On Windows the npm
+    entry point is ``claude.CMD``, so that process is a shell and the node
+    process doing the actual work is its child -- which survives the kill still
+    holding the stdout pipe, leaving the parent blocked on a read that never
+    ends. A 600-second writer timeout was observed surfacing 35 minutes late
+    for exactly this reason. ``taskkill /T`` takes the tree down together.
+    """
+    if os.name == "nt":
+        subprocess.run(
+            ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+            capture_output=True, check=False,
+        )
+    else:
+        proc.kill()
+
+
 def _invoke(prompt: str, tools: list[str], model: str | None,
             timeout_s: int) -> str:
-    cmd = ["claude", "-p", prompt, "--output-format", "json"]
+    # The prompt goes in on stdin, never in argv. Passing it as an argument
+    # capped every role at the cmd.exe 8191-character command line, and five
+    # of the seven prompt files exceed that before any event data is added
+    # (writer.md alone is 19k). stdin also removes every quoting and escaping
+    # hazard that comes with putting model-authored text on a command line.
+    cmd = [_claude_executable(), "-p", "--output-format", "json"]
     if model:
         cmd += ["--model", model]
     if tools:
@@ -108,15 +159,29 @@ def _invoke(prompt: str, tools: list[str], model: str | None,
     else:
         cmd += ["--allowed-tools", ""]
 
-    proc = subprocess.run(
+    # Popen rather than run(), so a timeout can take the whole process tree
+    # down instead of orphaning the worker and blocking on its pipes.
+    proc = subprocess.Popen(
         cmd,
-        capture_output=True,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         text=True,
-        timeout=timeout_s,
         env=_clean_env(),
         encoding="utf-8",
         errors="replace",
     )
+    try:
+        stdout, stderr = proc.communicate(prompt, timeout=timeout_s)
+    except subprocess.TimeoutExpired:
+        _kill_tree(proc)
+        try:
+            proc.communicate(timeout=30)
+        except subprocess.TimeoutExpired:
+            log.warning("role process %s did not exit after kill", proc.pid)
+        raise
+
+    proc = subprocess.CompletedProcess(cmd, proc.returncode, stdout, stderr)
     if proc.returncode != 0:
         raise RoleError(
             f"claude exited {proc.returncode}: {(proc.stderr or '').strip()[:400]}"

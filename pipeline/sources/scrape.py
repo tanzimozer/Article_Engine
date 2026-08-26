@@ -692,11 +692,68 @@ _THE_STRANGER = SiteSpec(
 )
 
 
+#: Visit Seattle runs WordPress and exposes a structured events route.
+#: Preferred over CSS scraping: the listing markup was rebuilt and none of the
+#: selectors in ``_VISIT_SEATTLE`` match it any more, while this returns clean
+#: JSON. robots.txt disallows only /wp-admin/, /portals/, /thank-you/ and
+#: /site/, so /wp-json/ is permitted.
+_VISIT_SEATTLE_API = "https://visitseattle.org/wp-json/visitseattle/v1/events"
+
+
+def _visitseattle_from_api(
+    site_cfg: Mapping[str, Any], window_days: int
+) -> list[RawEvent]:
+    """Return in-window events from the Visit Seattle JSON route."""
+    url = site_cfg.get("api_url") or _VISIT_SEATTLE_API
+    response = http_get(url, headers={"Accept": "application/json"})
+    try:
+        payload = response.json()
+    except ValueError as exc:
+        raise SourceError(f"visitseattle: {url} did not return JSON") from exc
+    if not isinstance(payload, list):
+        raise SourceError(f"visitseattle: expected a JSON array from {url}")
+
+    events: list[RawEvent] = []
+    for item in payload:
+        if not isinstance(item, Mapping):
+            continue
+        start_dt = normalize_dt(item.get("start_date"))
+        # Undated rows are dropped rather than deferred: this route always
+        # carries start_date, so a missing one means a malformed row.
+        if not within_window(start_dt, window_days, include_undated=False):
+            continue
+        link = clean_text(item.get("website_url")) or _VISIT_SEATTLE.listing_url
+        events.append(
+            build_event(
+                source="visitseattle",
+                url=link,
+                source_id=str(item.get("event_id") or "") or None,
+                title=item.get("title"),
+                description=strip_html(item.get("description")),
+                start_dt=start_dt,
+                end_dt=normalize_dt(item.get("end_date")),
+                venue_name=item.get("venue"),
+                venue_address=item.get("address"),
+                register_url=link,
+                raw=dict(item),
+            )
+        )
+    return events
+
+
 def _scrape_visitseattle(
     site_cfg: Mapping[str, Any], window_days: int
 ) -> list[RawEvent]:
-    """Return in-window events from visitseattle.org."""
-    return _scrape_with_spec(_VISIT_SEATTLE, site_cfg, window_days)
+    """Return in-window events from visitseattle.org.
+
+    Prefers the JSON route and falls back to the CSS spec, so a future
+    markup fix keeps working if the route is ever withdrawn.
+    """
+    try:
+        return _visitseattle_from_api(site_cfg, window_days)
+    except SourceError as exc:
+        LOG.warning("visitseattle JSON route unusable (%s); trying HTML", exc)
+        return _scrape_with_spec(_VISIT_SEATTLE, site_cfg, window_days)
 
 
 def _scrape_seattlegov(site_cfg: Mapping[str, Any], window_days: int) -> list[RawEvent]:
