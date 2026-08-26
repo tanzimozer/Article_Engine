@@ -8,10 +8,14 @@ by another person, or by the same person three weeks from now.
 ## One paragraph
 
 The pipeline turns a Seattle fitness event into a published SEO article, in
-eight stages, unattended. Until 2026-08-21 it had never been run. It now takes
-a hand-fed event all the way through to a scheduled publish, at a quality the
-judge panel passes. It cannot yet find its own subjects, process more than one
-article at a time, or run on GitHub Actions.
+eight stages. Until 2026-08-21 it had never been run. It now takes a hand-fed
+event all the way through to a scheduled publish, at a quality the judge panel
+passes. It cannot yet find its own subjects, or process more than one article
+at a time.
+
+**It runs on demand, not on a clock.** The cron is disabled in
+`.github/workflows/pipeline.yml`; `workflow_dispatch` remains, so it can still
+be triggered manually from the Actions tab. Locally, just run it.
 
 ---
 
@@ -86,19 +90,36 @@ the same race twice.
 
 ## Blocked on
 
-1. **`CLAUDE_CODE_OAUTH_TOKEN`** not in repo secrets. No scheduled run works
-   without it. `claude setup-token`, then paste into
-   `github.com/tanzimozer/Article_Engine/settings/secrets/actions`.
-2. **`WIX_API_KEY` / `WIX_MEMBER_ID`** not set. Nothing publishes.
-3. **No automatic event source.** Every configured source is a general city
+1. **`WIX_API_KEY` / `WIX_MEMBER_ID`** not set. Nothing publishes. This is the
+   only blocker between the current pipeline and a live article.
+2. **No automatic event source.** Every configured source is a general city
    calendar — Visit Seattle returns 66 music events, 53 museums, 3 sports.
    **RunSignUp is verified viable**: documented public API, robots.txt clean,
-   17 Seattle races with real dates and addresses. Nothing reads it yet.
-4. **`Skill-Cabinet` is now private.** `skills.py` clones it without
-   credentials — the comment still says "it's a PUBLIC repo, so no PAT is
-   needed". Three stages depend on it (voice handbook, rubric, EIC harness).
-   Works locally because your git is authenticated; **will fail on Actions**
-   even once the token above is stored.
+   17 Seattle races with real dates and addresses. Nothing reads it yet, so
+   events are hand-fed.
+
+Not blockers while running locally, but they become blockers the moment anything
+runs on GitHub:
+
+- **`CLAUDE_CODE_OAUTH_TOKEN`** is not in repo secrets. Local runs use your own
+  `claude auth login`; a runner has nothing.
+- **`Skill-Cabinet` is now private.** `skills.py` clones it without credentials
+  and its comment still says "it's a PUBLIC repo, so no PAT is needed". Three
+  stages depend on it (voice handbook, rubric, EIC harness). Works locally
+  because your git is authenticated; fails on a runner.
+
+### What the schedule actually did
+
+It ran twice daily from 2026-08-22 to 2026-08-26 on the pre-fix code: **33 runs,
+0 events, 0 articles, 0 published, one failure every run.** Gather died, the run
+continued with partial coverage exactly as designed, found nothing, committed
+state and exited. Nothing was ever published, and no model call was ever
+attempted — which is why those runs prove the workflow fires but say nothing
+about whether it can authenticate.
+
+The cron was retired rather than repaired: unattended runs against paths that
+have never been exercised spend quota to produce untested output. Uncomment the
+two cron lines to restore it.
 
 ---
 
@@ -170,11 +191,16 @@ West Seattle, University District, Green Lake.
 
 ## Suggested next moves
 
-1. Store the two credentials above. Nothing runs unattended until then.
-2. Resolve `Skill-Cabinet` — make it public again, add a PAT to Actions, or
-   vendor the three files it actually needs.
-3. Build the RunSignUp adapter. It is the only verified fitness-event source.
-4. Exercise dedupe with two real sources before trusting it.
-5. Then venue features — the dataset exists, the reference article is a venue
-   piece, and venues have no publishing deadline, so a failed attempt costs
-   nothing but time.
+1. **Store the Wix credentials** and publish one article for real. Everything
+   upstream is proven; this is the last untested link, and one live article is
+   worth more than any amount of further dry-running.
+2. **Build the RunSignUp adapter.** The only verified fitness-event source, and
+   the thing standing between hand-feeding and self-service.
+3. **Exercise dedupe with two real sources** before trusting it. It has never
+   merged anything, and it is what stops the same race publishing twice.
+4. **Then venue features** — the dataset exists, the reference article is a
+   venue piece, and venues have no publishing deadline, so a failed attempt
+   costs nothing but time.
+
+Restoring the schedule is worth doing only after 2 and 3, and it needs the two
+GitHub-side items above resolved first.

@@ -1,11 +1,21 @@
 name: Article Engine
 
-# 8am and 8pm Pacific. Cron is UTC-only with no DST awareness, so these drift
-# by an hour twice a year. At this cadence that does not matter.
+# Scheduling is off by design. This runs on demand, not on a clock.
+#
+# It did run twice daily from 2026-08-22 to 2026-08-26: 33 runs, every one
+# finding zero events and failing at gather, because the deployed code predated
+# the source fixes. Nothing was ever published. The schedule was retired rather
+# than repaired, because unattended runs against paths that have never been
+# exercised spend quota to produce untested output.
+#
+# To restore it, uncomment the two cron lines. Note that a scheduled workflow
+# also needs CLAUDE_CODE_OAUTH_TOKEN in repo secrets, which is not set: those
+# 33 runs never reached a model call, so they proved the workflow fires, not
+# that it can authenticate.
 on:
-  schedule:
-    - cron: "0 15 * * *"   # 08:00 PDT / 07:00 PST
-    - cron: "0 3 * * *"    # 20:00 PDT / 19:00 PST
+  # schedule:
+  #   - cron: "0 15 * * *"   # 08:00 PDT / 07:00 PST
+  #   - cron: "0 3 * * *"    # 20:00 PDT / 19:00 PST
   workflow_dispatch:
     inputs:
       dry_run:
