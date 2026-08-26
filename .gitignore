@@ -16,6 +16,6 @@ state/gtfs_cache/
 # state/pipeline.db is deliberately NOT ignored. It is the source of truth and
 # is committed every run, which also keeps the scheduled workflow alive.
 
-# Merge spec: neighborhood priorities, SFM Score design, dataset paths.
-# Business strategy rather than pipeline code, kept out of the public repo.
-SFM-MERGE.md
+# SFM-MERGE.md is tracked deliberately: it is the reasoning behind every stage
+# decision and the work cannot be resumed elsewhere without it. Note the repo is
+# public, so the neighborhood priority scores in it are visible.
